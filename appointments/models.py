@@ -16,35 +16,15 @@ class Appointment(models.Model):
         on_delete=models.CASCADE,
         related_name='patient_appointments'
     )
-    doctor = models.ForeignKey(
-        Doctor,
-        on_delete=models.CASCADE,
-        related_name='doctor_appointments'
-    )
-
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
     date = models.DateField()
     time = models.TimeField()
-
-    status = models.CharField(
-        max_length=15,
-        choices=STATUS_CHOICES,
-        default='PENDING'
-    )
-
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='PENDING')
     reason = models.TextField(blank=True, null=True)
-
-    prescription = models.FileField(
-        upload_to='prescriptions/',
-        blank=True,
-        null=True
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    prescription = models.FileField(upload_to='prescriptions/', null=True, blank=True)
 
     class Meta:
-        unique_together = ['doctor', 'date', 'time']  # prevents double booking
-        ordering = ['-created_at']
+        unique_together = ['doctor', 'date', 'time']
 
     def __str__(self):
-        return f"{self.patient} → {self.doctor} ({self.date} {self.time})"
+        return f"{self.patient} - {self.doctor}"

@@ -6,6 +6,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = '__all__'
+        read_only_fields = ['patient', 'status']
 
     def validate(self, data):
         doctor = data.get('doctor')
