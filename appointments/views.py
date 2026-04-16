@@ -1,57 +1,44 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from datetime import datetime, timedelta
 from django.shortcuts import get_object_or_404
+
 from doctors.models import Doctor
 from .models import Appointment
 from .serializers import AppointmentSerializer
 from .permissions import IsDoctor, IsPatient
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = Appointment.objects.all()
     serializer_class = AppointmentSerializer
     permission_classes = [IsAuthenticated]
-    
+
+    # FILTERING (mine=true)
     def get_queryset(self):
         user = self.request.user
+        queryset = super().get_queryset()
 
-        if user.role == 'PATIENT':
-            return Appointment.objects.filter(patient=user)
+        mine = self.request.query_params.get('mine')
 
-        elif user.role == 'DOCTOR':
-            return Appointment.objects.filter(doctor__user=user)
+        if mine == 'true':
+            if user.role == 'PATIENT':
+                return queryset.filter(patient=user)
+            elif user.role == 'DOCTOR':
+                return queryset.filter(doctor__user=user)
 
-        return Appointment.objects.all()
+        return queryset
 
+    # Auto assign patient
     def perform_create(self, serializer):
         serializer.save(patient=self.request.user)
 
-    def cancel(self, request, pk=None):
-        appointment = Appointment.objects.get(pk=pk)
-
-        if appointment.patient != request.user:
-            return Response({"error": "Unauthorized"}, status=403)
-
-        appointment.status = 'CANCELLED'
-        appointment.save()
-
-        return Response({"message": "Cancelled"})
-
-    def approve(self, request, pk=None):
-        appointment = Appointment.objects.get(pk=pk)
-
-        if request.user.role != 'DOCTOR':
-            return Response({"error": "Only doctors can approve"}, status=403)
-
-        appointment.status = 'APPROVED'
-        appointment.save()
-
-        return Response({"message": "Approved"})
-    
+    # AVAILABLE SLOTS
     @action(detail=False, methods=['get'])
     def available_slots(self, request):
         doctor_id = request.query_params.get('doctor')
@@ -60,7 +47,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if not doctor_id or not date:
             return Response({"error": "doctor and date required"}, status=400)
 
-        
         doctor = get_object_or_404(Doctor, id=doctor_id)
 
         start = datetime.combine(datetime.strptime(date, "%Y-%m-%d"), doctor.available_from)
@@ -72,7 +58,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         while current < end:
             slot_time = current.time()
 
-        # check if already booked
             if not Appointment.objects.filter(
                 doctor=doctor,
                 date=date,
@@ -80,10 +65,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             ).exists():
                 slots.append(slot_time.strftime("%H:%M"))
 
-            current += timedelta(minutes=30)  # 30 min slots
+            current += timedelta(minutes=30)
 
         return Response({"available_slots": slots})
-    
+
+    # APPROVE (Doctor only)
     @action(detail=True, methods=['post'], permission_classes=[IsDoctor])
     def approve(self, request, pk=None):
         appointment = self.get_object()
@@ -91,9 +77,34 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment.save()
         return Response({'status': 'approved'})
 
+    # CANCEL (Patient only)
     @action(detail=True, methods=['post'], permission_classes=[IsPatient])
     def cancel(self, request, pk=None):
         appointment = self.get_object()
         appointment.status = 'CANCELLED'
         appointment.save()
         return Response({'status': 'cancelled'})
+
+    @swagger_auto_schema(operation_description="Doctor dashboard data")
+    @action(detail=False, methods=['get'], permission_classes=[IsDoctor])
+    def dashboard(self, request):
+        user = request.user
+        today = datetime.now().date()
+
+        doctor = Doctor.objects.get(user=user)
+
+        today_appointments = Appointment.objects.filter(
+            doctor=doctor,
+            date=today
+        )
+
+        pending_appointments = Appointment.objects.filter(
+            doctor=doctor,
+            status='PENDING'
+        )
+
+        return Response({
+            "today_count": today_appointments.count(),
+            "pending_count": pending_appointments.count(),
+            "today_appointments": AppointmentSerializer(today_appointments, many=True).data
+        })
