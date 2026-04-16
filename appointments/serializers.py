@@ -10,8 +10,18 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         doctor = data.get('doctor')
+        date = data.get('date')
         time = data.get('time')
 
+        # Prevent double booking
+        if Appointment.objects.filter(
+            doctor=doctor,
+            date=date,
+            time=time
+        ).exists():
+            raise serializers.ValidationError("This time slot is already booked.")
+
+        # Check doctor availability
         if doctor and time:
             if not (doctor.available_from <= time <= doctor.available_to):
                 raise serializers.ValidationError("Doctor not available at this time")
