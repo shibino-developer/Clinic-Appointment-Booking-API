@@ -41,7 +41,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if appointment.patient.email:
             send_mail(
                 'Appointment Booked',
-                f'Your appointment with Doctor {appointment.doctor} on {appointment.date} at {appointment.time} is booked.',
+                f'Hi, Hope you are fine. We are pleased to inform you that your appointment with Dr. {appointment.doctor} on {appointment.date} at {appointment.time} is booked.',
                 'shibino.developer@gmail.com',
                 [appointment.patient.email],
                 fail_silently=False,
