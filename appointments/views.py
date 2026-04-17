@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from datetime import datetime, timedelta
 from django.shortcuts import get_object_or_404
-
+from django.core.mail import send_mail
 from doctors.models import Doctor
 from .models import Appointment
 from .serializers import AppointmentSerializer
@@ -36,7 +36,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     # Auto assign patient
     def perform_create(self, serializer):
-        serializer.save(patient=self.request.user)
+        appointment = serializer.save(patient=self.request.user)
+
+        if appointment.patient.email:
+            send_mail(
+                'Appointment Booked',
+                f'Your appointment with Doctor {appointment.doctor} on {appointment.date} at {appointment.time} is booked.',
+                'shibino.developer@gmail.com',
+                [appointment.patient.email],
+                fail_silently=False,
+            )
 
     # AVAILABLE SLOTS
     @action(detail=False, methods=['get'])
@@ -75,6 +84,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment = self.get_object()
         appointment.status = 'APPROVED'
         appointment.save()
+
+        if appointment.patient.email:
+            send_mail(
+                'Appointment Approved',
+                f'Your appointment on {appointment.date} at {appointment.time} has been approved.',
+                'shibino.developer@gmail.com',
+                [appointment.patient.email],
+                fail_silently=False,
+            )
+
         return Response({'status': 'approved'})
 
     # CANCEL (Patient only)
@@ -83,6 +102,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment = self.get_object()
         appointment.status = 'CANCELLED'
         appointment.save()
+
+        if appointment.patient.email:
+            send_mail(
+                'Appointment Cancelled',
+                f'Your appointment on {appointment.date} at {appointment.time} has been cancelled.',
+                'shibino.developer@gmail.com',
+                [appointment.patient.email],
+                fail_silently=False,
+            )
+
         return Response({'status': 'cancelled'})
 
     @swagger_auto_schema(operation_description="Doctor dashboard data")
