@@ -7,11 +7,15 @@ from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
 from doctors.models import Doctor
 from .models import Appointment
-from .serializers import AppointmentSerializer
+from .serializers import AppointmentSerializer, NotificationSerializer
 from .permissions import IsDoctor, IsPatient
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework.parsers import MultiPartParser, FormParser
+from .serializers import PrescriptionUploadSerializer
+from django.core.mail import EmailMessage
+from .models import Notification 
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
@@ -46,6 +50,17 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 [appointment.patient.email],
                 fail_silently=False,
             )
+        
+        # 🔔 Notify Doctor
+        Notification.objects.create(
+            user=appointment.doctor.user,
+            message=f"New appointment booked by {appointment.patient} on {appointment.date} at {appointment.time}"
+        )
+        # Notify Patient
+        Notification.objects.create(
+            user=appointment.patient,
+            message=f"Your appointment with Dr. {appointment.doctor} is booked successfully"
+        )
 
     # AVAILABLE SLOTS
     @action(detail=False, methods=['get'])
@@ -137,3 +152,43 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             "pending_count": pending_appointments.count(),
             "today_appointments": AppointmentSerializer(today_appointments, many=True).data
         })
+    
+    @swagger_auto_schema(manual_parameters=[openapi.Parameter('prescription', openapi.IN_FORM, type=openapi.TYPE_FILE, required=True, description="Upload prescription file")])
+    @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser], permission_classes=[IsDoctor])
+    
+    def upload_prescription(self, request, pk=None):
+        appointment = self.get_object()
+
+        file = request.FILES.get('prescription')
+
+        if not file:
+            return Response({"error": "No file uploaded"}, status=400)
+
+    # Save file
+        appointment.prescription = file
+        appointment.save()
+
+    # 📧 SEND EMAIL WITH ATTACHMENT
+        email = EmailMessage(
+            subject="Prescription Uploaded",
+            body=f"Hello,\n\nYour prescription for appointment on {appointment.date} at {appointment.time} is attached.\n\nGet well soon!",
+            from_email="shibino.developer@gmail.com",
+            to=[appointment.patient.email],
+        )
+        
+        # Attach file
+        email.attach_file(appointment.prescription.path)
+        print("EMAIL FUNCTION CALLED")
+        # Send email
+        email.send()
+
+        return Response({
+            "message": "Prescription uploaded and email sent successfully"
+        })
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')

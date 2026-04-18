@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
+from django.conf import settings
+from django.conf.urls.static import static
 from appointments.views import AppointmentViewSet
 from doctors.views import DoctorViewSet
 from accounts.views import RegisterView
@@ -10,11 +11,12 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.urls import re_path
+from appointments.views import NotificationViewSet
 
 router = DefaultRouter()
 router.register(r'appointments', AppointmentViewSet, basename='appointment')
 router.register(r'doctors', DoctorViewSet, basename='doctor')
-
+router.register(r'notifications', NotificationViewSet, basename='notifications')
 schema_view = get_schema_view(
     openapi.Info(
         title="Clinic API",
@@ -36,3 +38,4 @@ urlpatterns = [
     re_path(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0)),
     re_path(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=0)),
 ]
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

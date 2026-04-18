@@ -1,12 +1,12 @@
 from rest_framework import serializers
-from .models import Appointment
+from .models import Appointment, Notification
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = '__all__'
-        read_only_fields = ['patient', 'status']
+        # read_only_fields = ['patient', 'status']
 
     def validate(self, data):
         doctor = data.get('doctor')
@@ -27,3 +27,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Doctor not available at this time")
 
         return data
+    
+class PrescriptionUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Appointment
+        fields = ['prescription']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = '__all__'
