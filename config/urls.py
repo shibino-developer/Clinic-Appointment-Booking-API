@@ -24,7 +24,7 @@ schema_view = get_schema_view(
         description="Doctor Appointment Booking API",
     ),
     public=True,
-    permission_classes=(permissions.AllowAny,),
+    permission_classes=[permissions.AllowAny],
 )
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -33,10 +33,8 @@ urlpatterns = [
     path('api/login/', TokenObtainPairView.as_view()),
     path('api/token/refresh/', TokenRefreshView.as_view()),
 
-    path('api-auth/', include('rest_framework.urls')),
     path('api/', include(router.urls)),
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    re_path(r'^swagger/$', schema_view.with_ui('swagger', cache_timeout=0)),
-    re_path(r'^redoc/$', schema_view.with_ui('redoc', cache_timeout=0)),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='swagger'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='redoc'),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
