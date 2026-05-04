@@ -101,7 +101,7 @@ AUTH_USER_MODEL = 'accounts.User'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(default='sqlite:///db.sqlite3')
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
 }
 
 
