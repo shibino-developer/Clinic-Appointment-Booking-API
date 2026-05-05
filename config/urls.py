@@ -25,7 +25,7 @@ schema_view = get_schema_view(
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
-    authentication_classes=[],   # 👈 ADD THIS LINE
+    authentication_classes=[],  # ✅ THIS IS THE FIX
 )
 urlpatterns = [
     path('admin/', admin.site.urls),
